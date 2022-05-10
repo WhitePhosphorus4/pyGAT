@@ -1,5 +1,3 @@
-from asyncio.windows_events import NULL
-from gettext import NullTranslations
 import numpy as np
 import torch
 import torch.nn as nn
@@ -10,7 +8,7 @@ class GraphAttentionLayer(nn.Module):
     """
     Simple GAT layer, similar to https://arxiv.org/abs/1710.10903
     """
-    def __init__(self, in_features, out_features, dropout, alpha, concat=True, kernel=NULL, sigma=1):
+    def __init__(self, in_features, out_features, num_node, dropout, alpha, concat=True, kernel=False, sigma=1):
         super(GraphAttentionLayer, self).__init__()
         self.dropout = dropout
         self.in_features = in_features
@@ -19,11 +17,15 @@ class GraphAttentionLayer(nn.Module):
         self.concat = concat    # 用于判断是否只有一个attention head
         self.kernel = kernel    # 用于判断是否使用核注意力
         self.sigma = sigma     # 核注意力的sigma
+        self.num_node = num_node    # 数据集节点数量
 
         self.W = nn.Parameter(torch.empty(size=(in_features, out_features)))    # 建立一个权重，用于对特征数F进行线性变换
         nn.init.xavier_uniform_(self.W.data, gain=1.414)
-        self.a = nn.Parameter(torch.empty(size=(2*out_features, 1)))    # 计算α，输入是上一层两个输出的拼接，输出是eij
-        nn.init.xavier_uniform_(self.a.data, gain=1.414)
+        self.bias = nn.Parameter(torch.empty(size=(num_node,num_node)))  # 偏置
+        nn.init.xavier_uniform_(self.bias.data, gain=1.414)
+        if not kernel:
+            self.a = nn.Parameter(torch.empty(size=(2*out_features, 1)))    # 计算α，输入是上一层两个输出的拼接，输出是eij
+            nn.init.xavier_uniform_(self.a.data, gain=1.414)
 
         self.leakyrelu = nn.LeakyReLU(self.alpha)   # 激活
 
@@ -46,9 +48,9 @@ class GraphAttentionLayer(nn.Module):
     def _prepare_attentional_mechanism_input(self, Wh):
 
         if not self.kernel:
-            e = _self_attentional_mechanism(Wh)
+            e = self._self_attentional_mechanism(Wh)
         else:
-            e = _kernel_attentional_mechanism(Wh)
+            e = self._kernel_attentional_mechanism(Wh)
             
         # broadcast add
         return self.leakyrelu(e)
@@ -65,15 +67,35 @@ class GraphAttentionLayer(nn.Module):
         e = Wh1 + Wh2.T
         return e
 
-    def _kernel_attentional_mechanism(self, Wh):
+    def _kernel_attentional_mechanism(self, Wh, kernel="sigmoid", cyn=0.5, pow=2, beta=2):
         # TODO: 实现核注意力
         # kernel attentional mechanism
-        X = Wh
-        Y = Wh
-        D2 = np.sum(X*X, axis=1, keepdims=True) \
-            + np.sum(Y*Y, axis=1, keepdims=True).T \
-            - 2 * np.dot(X, Y.T)
-        e = np.exp(-D2 / (2 * self.sigma ** 2))
+        # # 高斯
+        # X = Wh
+        # Y = Wh
+        # D2 = np.sum(X*X, axis=1, keepdims=True) \
+        #     + np.sum(Y*Y, axis=1, keepdims=True).T \
+        #     - 2 * np.matmul(X, Y.T)
+        # e = np.exp(-D2 / (2 * self.sigma ** 2))
+
+        
+        if kernel == "polynomial":
+            e = torch.matmul(Wh, Wh.T)
+            c = torch.ones_like(e) * cyn
+            e = e + c
+            # e = e + self.bias
+            e.pow(pow)
+        elif kernel == "sigmoid":
+            e = torch.matmul(Wh, Wh.T)
+            c = torch.ones_like(e) * cyn
+            e = beta * e + c
+            # e = beta * e + self.bias
+            e = F.tanh(e)
+        elif kernel == "gaussian":
+            pass
+        else:
+            raise NotImplementedError
+
         return e
 
     def __repr__(self):

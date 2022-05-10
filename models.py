@@ -5,16 +5,16 @@ from layers import GraphAttentionLayer, SpGraphAttentionLayer
 
 
 class GAT(nn.Module):
-    def __init__(self, nfeat, nhid, nclass, dropout, alpha, nheads):
+    def __init__(self, nfeat, nhid, nclass, nnode, dropout, alpha, nheads, iskernel=False):
         """Dense version of GAT."""
         super(GAT, self).__init__()
         self.dropout = dropout
 
-        self.attentions = [GraphAttentionLayer(nfeat, nhid, dropout=dropout, alpha=alpha, concat=True) for _ in range(nheads)]
+        self.attentions = [GraphAttentionLayer(nfeat, nhid, nnode, dropout=dropout, alpha=alpha, concat=True, kernel=iskernel) for _ in range(nheads)]
         for i, attention in enumerate(self.attentions):
             self.add_module('attention_{}'.format(i), attention)
 
-        self.out_att = GraphAttentionLayer(nhid * nheads, nclass, dropout=dropout, alpha=alpha, concat=False)
+        self.out_att = GraphAttentionLayer(nhid * nheads, nclass, nnode, dropout=dropout, alpha=alpha, concat=False, kernel=False)
 
     def forward(self, x, adj):
         x = F.dropout(x, self.dropout, training=self.training)
