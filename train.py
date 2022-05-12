@@ -13,7 +13,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 
-from utils import load_cite_data, accuracy
+from utils import load_cite_data, accuracy, load_txt_data
 from models import GAT, SpGAT
 
 # Training settings
@@ -43,7 +43,7 @@ if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
 # Load data
-adj, features, labels, idx_train, idx_val, idx_test = load_cite_data()
+adj, features, labels, idx_train, idx_val, idx_test = load_txt_data()
 
 # Model and optimizer
 if args.sparse:
