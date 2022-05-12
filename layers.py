@@ -67,7 +67,7 @@ class GraphAttentionLayer(nn.Module):
         e = Wh1 + Wh2.T
         return e
 
-    def _kernel_attentional_mechanism(self, Wh, kernel="sigmoid", cyn=0.5, pow=2, beta=2):
+    def _kernel_attentional_mechanism(self, Wh, kernel="polynomial", cyn=0.5, pow=3, beta=2):
         # TODO: 实现核注意力
         # kernel attentional mechanism
         # # 高斯
@@ -92,6 +92,7 @@ class GraphAttentionLayer(nn.Module):
             # e = beta * e + self.bias
             e = F.tanh(e)
         elif kernel == "gaussian":
+            e = torch.ones_like(Wh)
             pass
         else:
             raise NotImplementedError
