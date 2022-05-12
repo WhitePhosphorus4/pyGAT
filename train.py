@@ -13,7 +13,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 
-from utils import load_data, accuracy
+from utils import load_cite_data, accuracy
 from models import GAT, SpGAT
 
 # Training settings
@@ -30,7 +30,7 @@ parser.add_argument('--nb_heads', type=int, default=8, help='Number of head atte
 parser.add_argument('--dropout', type=float, default=0.6, help='Dropout rate (1 - keep probability).')
 parser.add_argument('--alpha', type=float, default=0.2, help='Alpha for the leaky_relu.')
 parser.add_argument('--patience', type=int, default=100, help='Patience')
-parser.add_argument('--iskernel',action='store_true', default=False, help='Run in kernel-attention')
+parser.add_argument('--iskernel',action='store_true', default=True, help='Run in kernel-attention')
 parser.add_argument('--kernel',type=str, default='sigmoid', help='Choose the kernel function')
 
 args = parser.parse_args()
@@ -43,7 +43,7 @@ if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
 # Load data
-adj, features, labels, idx_train, idx_val, idx_test = load_data()
+adj, features, labels, idx_train, idx_val, idx_test = load_cite_data()
 
 # Model and optimizer
 if args.sparse:

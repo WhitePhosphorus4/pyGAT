@@ -5,17 +5,14 @@ import torch.nn.functional as F
 
 
 class GraphAttentionLayer(nn.Module):
-    """
-    Simple GAT layer, similar to https://arxiv.org/abs/1710.10903
-    """
-    def __init__(self, in_features, out_features, num_node, dropout, alpha, concat=True, kernel=False, sigma=1):
+    def __init__(self, in_features, out_features, num_node, dropout, alpha, concat=True, iskernel=False, sigma=1):
         super(GraphAttentionLayer, self).__init__()
         self.dropout = dropout
         self.in_features = in_features
         self.out_features = out_features
         self.alpha = alpha  # leakyrelu的激活斜率
         self.concat = concat    # 用于判断是否只有一个attention head
-        self.kernel = kernel    # 用于判断是否使用核注意力
+        self.iskernel = iskernel    # 用于判断是否使用核注意力
         self.sigma = sigma     # 核注意力的sigma
         self.num_node = num_node    # 数据集节点数量
 
@@ -23,9 +20,12 @@ class GraphAttentionLayer(nn.Module):
         nn.init.xavier_uniform_(self.W.data, gain=1.414)
         self.bias = nn.Parameter(torch.empty(size=(num_node,num_node)))  # 偏置
         nn.init.xavier_uniform_(self.bias.data, gain=1.414)
-        if not kernel:
+        if not iskernel:
             self.a = nn.Parameter(torch.empty(size=(2*out_features, 1)))    # 计算α，输入是上一层两个输出的拼接，输出是eij
             nn.init.xavier_uniform_(self.a.data, gain=1.414)
+        else:
+            self.bias = nn.Parameter(torch.empty(size=(num_node,num_node)))  # 偏置
+            nn.init.xavier_uniform_(self.bias.data, gain=1.414)
 
         self.leakyrelu = nn.LeakyReLU(self.alpha)   # 激活
 
@@ -47,7 +47,7 @@ class GraphAttentionLayer(nn.Module):
 
     def _prepare_attentional_mechanism_input(self, Wh):
 
-        if not self.kernel:
+        if not self.iskernel:
             e = self._self_attentional_mechanism(Wh)
         else:
             e = self._kernel_attentional_mechanism(Wh)
@@ -67,22 +67,13 @@ class GraphAttentionLayer(nn.Module):
         e = Wh1 + Wh2.T
         return e
 
-    def _kernel_attentional_mechanism(self, Wh, kernel="polynomial", cyn=0.5, pow=3, beta=2):
-        # TODO: 实现核注意力
+    def _kernel_attentional_mechanism(self, Wh, kernel="gaussian", cyn=0.5, pow=3, beta=2):
         # kernel attentional mechanism
-        # # 高斯
-        # X = Wh
-        # Y = Wh
-        # D2 = np.sum(X*X, axis=1, keepdims=True) \
-        #     + np.sum(Y*Y, axis=1, keepdims=True).T \
-        #     - 2 * np.matmul(X, Y.T)
-        # e = np.exp(-D2 / (2 * self.sigma ** 2))
-
         
         if kernel == "polynomial":
             e = torch.matmul(Wh, Wh.T)
             c = torch.ones_like(e) * cyn
-            e = e + c
+            e = e + c                                                                                      
             # e = e + self.bias
             e.pow(pow)
         elif kernel == "sigmoid":
@@ -92,12 +83,25 @@ class GraphAttentionLayer(nn.Module):
             # e = beta * e + self.bias
             e = F.tanh(e)
         elif kernel == "gaussian":
-            e = torch.ones_like(Wh)
-            pass
+            # e = torch.ones_like(Wh)
+            e = self._gaussian_kernel_mechanism(Wh)
+        elif kernel == "ones":
+            x = torch.matmul(Wh, Wh.T)
+            e = torch.ones_like(x)
         else:
             raise NotImplementedError
 
         return e
+    
+    def _gaussian_kernel_mechanism(self, Wh, gama=10):
+        # TODO: 实现高斯核运算
+        D2 = torch.sum(Wh.pow(2), axis=1) + torch.sum(Wh.pow(2), axis=1).T - 2 * torch.matmul(Wh, Wh.T)
+        e = torch.exp(-D2/(2*self.sigma**2))
+
+        # D2 = torch.sum(Wh.pow(2), axis=1).T - torch.matmul(Wh, Wh.T)
+        # e = torch.exp(-gama*D2/(self.sigma**2))
+        return e
+        
 
     def __repr__(self):
         return self.__class__.__name__ + ' (' + str(self.in_features) + ' -> ' + str(self.out_features) + ')'
@@ -132,10 +136,6 @@ class SpecialSpmm(nn.Module):
 
     
 class SpGraphAttentionLayer(nn.Module):
-    """
-    Sparse version GAT layer, similar to https://arxiv.org/abs/1710.10903
-    """
-
     def __init__(self, in_features, out_features, dropout, alpha, concat=True):
         super(SpGraphAttentionLayer, self).__init__()
         self.in_features = in_features
