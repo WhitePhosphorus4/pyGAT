@@ -96,6 +96,7 @@ class GraphAttentionLayer(nn.Module):
     def _gaussian_kernel_mechanism(self, Wh, gama=10):
         # TODO: 实现高斯核运算
         D2 = torch.sum(Wh.pow(2), axis=1) + torch.sum(Wh.pow(2), axis=1).T - 2 * torch.matmul(Wh, Wh.T)
+        # D2 = torch.matmul(Wh, Wh.T) + torch.matmul(Wh, Wh.T).T - 2 * torch.matmul(Wh, Wh.T)
         e = torch.exp(-D2/(2*self.sigma**2))
 
         # D2 = torch.sum(Wh.pow(2), axis=1).T - torch.matmul(Wh, Wh.T)
