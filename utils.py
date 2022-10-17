@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.sparse as sp
 import torch
+import matplotlib.pyplot as plt
 
 
 def encode_onehot(labels):
@@ -45,3 +46,27 @@ def sparse_mx_to_torch_sparse_tensor(sparse_mx):
     values = torch.from_numpy(sparse_mx.data)
     shape = torch.Size(sparse_mx.shape)
     return torch.sparse.FloatTensor(indices, values, shape)
+
+def loss_polt(x, train_loss_list, val_loss_list, train_acc_list, val_acc_list):
+    '''
+    Plot the loss curve and save it to the path.
+    '''
+    plt.subplot(2, 1, 1)
+    plt.plot(x, train_loss_list, label='train_loss')
+    plt.plot(x, val_loss_list, label='val_loss')
+    plt.title("loss")
+    plt.xlabel("epoch")
+    plt.ylabel("loss")
+    plt.legend()
+
+    plt.subplot(2, 1, 2)
+    plt.plot(x, train_acc_list, label='train_acc')
+    plt.plot(x, val_acc_list, label='val_acc')
+    plt.title("acc")
+    plt.xlabel("epoch")
+    plt.ylabel("acc")
+    plt.legend()
+
+    # plt.show()
+    plt.savefig('losspic.jpg', bbox_inches='tight', dpi=450)
+
