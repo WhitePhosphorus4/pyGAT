@@ -102,3 +102,4 @@ ENV/
 
 *.pkl
 .vscode
+Points/*

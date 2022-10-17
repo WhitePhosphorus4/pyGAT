@@ -13,14 +13,15 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 
-from utils import load_data, accuracy
+from utils import accuracy
+from data_loader import load_cora_data, load_txt_data
 from models import GAT, SpGAT
 
 # Training settings
 parser = argparse.ArgumentParser()
 parser.add_argument('--no-cuda', action='store_true', default=False, help='Disables CUDA training.')
 parser.add_argument('--fastmode', action='store_true', default=False, help='Validate during training pass.')
-parser.add_argument('--sparse', action='store_true', default=False, help='GAT with sparse version or not.')
+parser.add_argument('--sparse', action='store_true', default=True, help='GAT with sparse version or not.')
 parser.add_argument('--seed', type=int, default=72, help='Random seed.')
 parser.add_argument('--epochs', type=int, default=10000, help='Number of epochs to train.')
 parser.add_argument('--lr', type=float, default=0.005, help='Initial learning rate.')
@@ -30,6 +31,7 @@ parser.add_argument('--nb_heads', type=int, default=8, help='Number of head atte
 parser.add_argument('--dropout', type=float, default=0.6, help='Dropout rate (1 - keep probability).')
 parser.add_argument('--alpha', type=float, default=0.2, help='Alpha for the leaky_relu.')
 parser.add_argument('--patience', type=int, default=100, help='Patience')
+parser.add_argument('--dataset', type=str, default='LiDAR-UH', help='Dataset')
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -41,7 +43,10 @@ if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
 # Load data
-adj, features, labels, idx_train, idx_val, idx_test = load_data()
+if args.dataset == 'cora':
+    adj, features, labels, idx_train, idx_val, idx_test = load_cora_data()
+elif args.dataset.startswith('LiDAR'):
+    adj, features, labels, idx_train, idx_val, idx_test = load_txt_data(data_name=args.dataset.split('-')[1])
 
 # Model and optimizer
 if args.sparse:

@@ -27,6 +27,8 @@ class GraphAttentionLayer(nn.Module):
         Wh = torch.mm(h, self.W) # h.shape: (N, in_features), Wh.shape: (N, out_features)
         e = self._prepare_attentional_mechanism_input(Wh)
 
+        if adj.is_sparse:
+            adj = adj.to_dense()
         zero_vec = -9e15*torch.ones_like(e)
         attention = torch.where(adj > 0, e, zero_vec)
         attention = F.softmax(attention, dim=1)
@@ -106,6 +108,8 @@ class SpGraphAttentionLayer(nn.Module):
     def forward(self, input, adj):
         dv = 'cuda' if input.is_cuda else 'cpu'
 
+        if adj.is_sparse:
+            adj = adj.to_dense()
         N = input.size()[0]
         edge = adj.nonzero().t()
 
